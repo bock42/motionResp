@@ -5,7 +5,7 @@
 %% set defaults
 figDir                          = '/Users/abock/MOTION_CORRECTION_TECHDEV/figures';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/heteroPhantom/042016/';
-%params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/heteroPhantom/051016';
+params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/heteroPhantom/051016';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/heteroPhantom/052016';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/homoPhantom/042016';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/HCLV1001/8792BT';
@@ -15,12 +15,13 @@ figDir                          = '/Users/abock/MOTION_CORRECTION_TECHDEV/figure
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/TOME_3002/082616a';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/TOME_3003/090216';
 %params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/TOME_3004/091916';
-params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/TOME_3005/092316';
+%params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/TOME_3005/092316';
+params.sessionDir               = '/Users/abock/MOTION_CORRECTION_TECHDEV/simulations';
 params.despike                  = 0; % params.despike data
 params.slicetiming              = 0; % do slice timing correction
 params.refvol                   = 1; % reference volume = 1st TR
 params.regFirst                 = 0; % register to the first run
-runNum                          = 2;
+runNum                          = 1;
 b                               = find_bold(params.sessionDir);
 Fs                              = 1/0.8; % Sampling frequency
 %% Correct motion using mri_robust_register
@@ -62,7 +63,7 @@ fullFigure;
 
 subplot(2,2,1);
 plot(robust);
-ylim([-5 5]);
+ylim([-.5 .5]);
 title('robust register','FontSize',20);
 xlabel('TR','FontSize',20);
 ylabel('movement (mm)','FontSize',20);
@@ -76,7 +77,7 @@ set(hF,'fontsize',20);
 
 subplot(2,2,2);
 plot(mcflirtOut);
-ylim([-5 5]);
+ylim([-.5 .5]);
 title('mcflirt','FontSize',20);
 xlabel('TR','FontSize',20);
 ylabel('movement (mm)','FontSize',20);
@@ -140,7 +141,7 @@ else
     pulse.all = [];
 end
 plot(pulse.pulse.data);
-%%
+%% Plot Pulse data
 close all;
 fullFigure;
 subplot(2,1,1)
@@ -163,3 +164,202 @@ ylabel('Power/Frequency (dB/Hz)','FontSize',20);
 cd(figDir);
 savefigs('pdf');
 close all;
+%% mcflirt motion movie
+yLimVals                    = [-1 1];
+outDir                      = fullfile(params.sessionDir,b{runNum});
+outFile                     = fullfile(outDir,'mcflirt');
+outObj                      = VideoWriter(outFile);
+outObj.FrameRate            = 30;
+outObj.Quality              = 100;
+open(outObj);
+close all;
+ih = figure;
+for i = 1:size(mcflirtOut,1)
+    hold off;
+    plot(mcflirtOut);
+    title('mcflirt','FontSize',20);
+    xlim([0 size(mcflirtOut,1)]);
+    xlabel('TR','FontSize',20);
+    ylabel('movement (mm)','FontSize',20);
+    axis square;
+    hold on;
+    plot([i-1 i-1],yLimVals,'r','LineWidth',2);
+    ylim(yLimVals);
+    frame                   = getframe(ih);
+    writeVideo(outObj,frame);
+end
+close(outObj);
+close(ih);
+%% robust motion movie
+yLimVals                    = [-1 1];
+outDir                      = fullfile(params.sessionDir,b{runNum});
+outFile                     = fullfile(outDir,'robust');
+outObj                      = VideoWriter(outFile);
+outObj.FrameRate            = 30;
+outObj.Quality              = 100;
+open(outObj);
+close all;
+ih = figure;
+for i = 1:size(robust,1)
+    hold off;
+    plot(robust);
+    title('robust','FontSize',20);
+    xlim([0 size(robust,1)]);
+    xlabel('TR','FontSize',20);
+    ylabel('movement (mm)','FontSize',20);
+    axis square;
+    hold on;
+    plot([i-1 i-1],yLimVals,'r','LineWidth',2);
+    ylim(yLimVals);
+    frame                   = getframe(ih);
+    writeVideo(outObj,frame);
+end
+close(outObj);
+close(ih);
+%% mcflirt movie - brain
+outDir                      = fullfile(params.sessionDir,b{runNum});
+inFile                      = 'mcflirt';
+outFile                     = fullfile(outDir,inFile);
+outObj                      = VideoWriter(fullfile(outDir,'mcflirtBrain'));
+outObj.FrameRate            = 30;
+outObj.Quality              = 100;
+% Convert to RAS
+system(['mri_convert ' outFile '.nii.gz ' outFile '.RAS.nii.gz']);
+% Load file
+foo = load_nifti([outFile '.RAS.nii.gz']);
+% Open video file
+open(outObj);
+% make video
+ih = figure;
+for i = 1:size(foo.vol,4);
+    tmp                     = squeeze(foo.vol(size(foo.vol,1)/2,:,:,i));
+    imagesc(squeeze(flipud(tmp')));
+    colormap('gray');
+    frame                   = getframe(ih);
+    writeVideo(outObj,frame);
+end
+close(outObj);
+close(ih);
+%% robust movie - brain
+outDir                      = fullfile(params.sessionDir,b{runNum});
+inFile                      = 'rf';
+outFile                     = fullfile(outDir,inFile);
+outObj                      = VideoWriter(fullfile(outDir,'robustBrain'));
+outObj.FrameRate            = 30;
+outObj.Quality              = 100;
+% Convert to RAS
+system(['mri_convert ' outFile '.nii.gz ' outFile '.RAS.nii.gz']);
+% Load file
+foo = load_nifti([outFile '.RAS.nii.gz']);
+% Open video file
+open(outObj);
+% make video
+ih = figure;
+for i = 1:size(foo.vol,4);
+    tmp                     = squeeze(foo.vol(size(foo.vol,1)/2,:,:,i));
+    imagesc(squeeze(flipud(tmp')));
+    colormap('gray');
+    frame                   = getframe(ih);
+    writeVideo(outObj,frame);
+end
+close(outObj);
+close(ih);
+%% robust movie - brain
+outDir                      = fullfile(params.sessionDir,b{runNum});
+inFile                      = 'raw_f';
+outFile                     = fullfile(outDir,inFile);
+outObj                      = VideoWriter(fullfile(outDir,'rawBrain'));
+outObj.FrameRate            = 30;
+outObj.Quality              = 100;
+% Convert to RAS
+system(['mri_convert ' outFile '.nii.gz ' outFile '.RAS.nii.gz']);
+% Load file
+foo = load_nifti([outFile '.RAS.nii.gz']);
+% Open video file
+open(outObj);
+% make video
+ih = figure;
+for i = 1:size(foo.vol,4);
+    tmp                     = squeeze(foo.vol(size(foo.vol,1)/2,:,:,i));
+    imagesc(squeeze(flipud(tmp')));
+    colormap('gray');
+    frame                   = getframe(ih);
+    writeVideo(outObj,frame);
+end
+close(outObj);
+close(ih);
+%% Simulations
+tmp                         = load_nifti(fullfile(params.sessionDir,'zeros.nii.gz'));
+dims                        = size(tmp.vol);
+x                           = 1:dims(1);
+y                           = 1:dims(2);
+z                           = 1:dims(3);
+[xGrid,yGrid,zGrid]         = meshgrid(x,y,z);
+dists                       = sqrt( (xGrid - dims(1)/2).^2 + (yGrid - dims(2)/2).^2 + ...
+    (zGrid - dims(3)/2).^2 );
+% Make a sphere
+outFlat                     = (10^-6)*ones(dims(1)*dims(2)*dims(3),dims(4));
+for i = 1:dims(4)
+   outFlat(dists<20,i)        = 1;
+end
+out                         = tmp;
+out.vol                     = reshape(outFlat,dims(1),dims(2),dims(3),dims(4));
+save_nifti(out,fullfile(params.sessionDir,'sphere.nii.gz'));
+% Make a hollow sphere
+outFlat                     = zeros(dims(1)*dims(2)*dims(3),dims(4));
+for i = 1:dims(4)
+   outFlat(dists<20,i)        = 1000;
+   outFlat(dists<10,i)        = 0;
+end
+out                         = tmp;
+out.vol                     = reshape(outFlat,dims(1),dims(2),dims(3),dims(4));
+save_nifti(out,fullfile(params.sessionDir,'hollow.nii.gz'));
+%% Get motion params - robust register
+params.despike                  = 0; % params.despike data
+params.slicetiming              = 0; % do slice timing correction
+params.refvol                   = 1; % reference volume = 1st TR
+params.regFirst                 = 0; % register to the first run
+runNum                          = 1;
+b                               = find_bold(params.sessionDir);
+% Correct motion using mri_robust_register
+motion_slice_correction(params,runNum);
+%% Get motion params - mcflirt
+clear mcflirtOut
+thisDir = fullfile(params.sessionDir);
+mats = listdir(fullfile(thisDir,'sphere.10.mcflirt.nii.gz.mat++++/MAT*'),'files');
+cd(fullfile(thisDir,'sphere.10.mcflirt.nii.gz.mat++++'));
+mcflirtOut = nan(length(mats),6);
+for i = 1:length(mats)
+    [x,y,z,pitch,yaw,roll] = convertMAT2tranrot(mats{i});
+    mcflirtOut(i,1) = pitch*50;
+    mcflirtOut(i,2) = yaw*50;
+    mcflirtOut(i,3) = roll*50;
+    mcflirtOut(i,4) = x;
+    mcflirtOut(i,5) = y;
+    mcflirtOut(i,6) = z;
+end
+%%
+close all;
+
+fullFigure;
+
+subplot(1,2,1);
+plot(robust);
+ylim([-.1 .1]);
+title('robust register','FontSize',20);
+xlabel('TR','FontSize',20);
+ylabel('movement (mm)','FontSize',20);
+
+[h1,h2] = legend({'pitch' 'yaw' 'roll' 'x' 'y' 'z'},'FontSize',20);
+set(h1,'Position',[0.49 0.5 .05 .1]);
+hL=findobj(h2,'type','line');  % get the lines
+set(hL,'linewidth',5);
+hF=findobj(h2,'type','text');  % get the text
+set(hF,'fontsize',20);
+
+subplot(1,2,2);
+plot(mcflirtOut);
+ylim([-.1 .1]);
+title('mcflirt','FontSize',20);
+xlabel('TR','FontSize',20);
+ylabel('movement (mm)','FontSize',20);
